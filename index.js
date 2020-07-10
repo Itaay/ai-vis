@@ -1,0 +1,147 @@
+class Cell{ // a class that represents a living cell
+    constructor(location, parent){
+        this.location = location;   // the location of the cell in the world
+        this.age = 0;   // the age of the cell
+        this.parent = parent;
+    }
+
+    update(){
+        this.age++;
+    }
+
+    createChild(range){
+        let x = 2 * (Math.random() - 0.5);
+        let y = 2 * (Math.random() - 0.5);
+        const size = Math.sqrt((x**2) + (y**2)+0.0001);
+        const ratio = range/size;
+        x *= ratio;
+        y *= ratio;
+
+        return new Cell({x:Math.floor(this.location.x + x), y: Math.floor(this.location.y + y)}, this);
+    }
+
+    draw(c){
+        c.beginPath();
+        c.arc(this.location.x, this.location.y, this.getSize(), 0, 2 * Math.PI);
+        c.fillStyle = this.getColor();
+        c.fill();
+    }
+
+    getSize(){
+        return 10;
+    }
+
+    getColor(){
+        let color = {r:115, g:77, b:38};
+        color.r = Math.floor(color.r + (this.age/4));
+        color.g = Math.floor(color.g + (this.age/2));
+        color.b = Math.floor(color.b + (this.age/2));
+        return "rgb(" + color.r + ", " + color.g + ", " + color.b + ")";
+    }
+
+    canCreateChild(env){
+        let rand = Math.random();
+        let score = 0.5*blueScore(pixelValue(env, this.location.x, this.location.y));
+        return rand < score/((this.age/4) + 1);
+    }
+
+    needsToDie(env){
+        let parentScore = 0;
+        if(this.parent != undefined){
+            this.parent.waterScore(env)
+        }
+        return (this.age > 1 && (this.waterScore(env) < parentScore)) || this.age > 30;
+    }
+
+    waterScore(env){
+        return blueScore(pixelValue(env, this.location.x, this.location.y));
+    }
+
+
+
+}
+
+
+function blueScore(color){
+    const redSquaredDistance = (color.r) ** 2;  // max value (65025)
+    const greenSquaredDistance = (0.5 * color.g) ** 2;  // max value (16129)
+    const blueSquareDistance = (255 - color.b) ** 2;    // max value (65025)
+    const distance = Math.sqrt(redSquaredDistance + greenSquaredDistance + blueSquareDistance); // max value (382.336239)
+
+    const maxDistance = 382.336239;
+    return ((maxDistance - distance) / maxDistance)**3   // the relative distance of the given color from the absolute color blue (between 0[yellow] and 1[blue]).
+}
+
+function drawEnv(c, env){
+    c.drawImage(env, 0, 0);
+}
+
+function iterateSimulation(c, env, noiseSize){
+    let maxChildCount = 20;
+    drawEnv(c, env);
+    let i =0;
+    while(i<tree.length){
+        cell = tree[i];
+        cell.update()   // update age of cell
+        for(let i =0;i<maxChildCount; i++){
+            if(cell.canCreateChild(env)){   // check if possible to create a child
+                tree[i] = cell.createChild(noiseSize);
+                //tree.push(cell.createChild(noiseSize)); // create the child
+            }
+        }
+        
+        if(cell.needsToDie(env)){   // check if the cell is old enough/ weak enough to die
+            if(tree.length == 1){
+                cell.age = 0;
+            }
+            else{
+                tree = tree.splice(i, 1) // delete the cell from the tree if needs to die
+                i--;
+            }
+        }
+        i++;
+    };
+    tree.forEach(cell=>cell.draw(c));
+}
+
+
+function pixelValue(c, x, y){   // get the RGB value of a location on a given canvas
+    let pixelData = c.getContext("2d").getImageData(x, y, 1, 1).data;
+    return {r:pixelData[0], g:pixelData[1], b:pixelData[2]};
+}
+
+
+function readImageFromInput(input, callback){
+    var file = input.files[0];
+    var fr = new FileReader();
+    fr.onload = ()=>{
+        callback(fr.result);
+    }
+    fr.readAsDataURL(file);    // begin reading
+    
+}
+
+function start(input){
+    background.onload = ()=>{
+        
+        runSimulation();
+    };
+    readImageFromInput(input, (result)=>{
+        background.src = result;
+    });
+}
+
+function runSimulation(){
+    tree = [new Cell({x:400, y:400})];
+    envCtx.drawImage(background, 0, 0);
+    setInterval(()=>iterateSimulation(ctx, environment, noiseRange), 10)
+}
+
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+let background = new Image();
+let environment = document.getElementById("tmp");
+let envCtx = environment.getContext("2d");
+let noiseRange = 10;
+
+let tree = [new Cell({x:400, y:400}, new Cell({x:400, y:400}))];  // a list of living cells
