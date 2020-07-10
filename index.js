@@ -21,14 +21,20 @@ class Cell{ // a class that represents a living cell
     }
 
     draw(c){
+        
         c.beginPath();
+        c.moveTo(this.parent.location.x, this.parent.location.y);
+        c.lineTo(this.location.x, this.location.y);
+        c.strokeStyle = this.getColor();
+        ctx.lineWidth = 3;
+        ctx.stroke();
         c.arc(this.location.x, this.location.y, this.getSize(), 0, 2 * Math.PI);
         c.fillStyle = this.getColor();
         c.fill();
     }
 
     getSize(){
-        return 10;
+        return 2;
     }
 
     getColor(){
@@ -46,15 +52,20 @@ class Cell{ // a class that represents a living cell
     }
 
     needsToDie(env){
-        let parentScore = 0;
-        if(this.parent != undefined){
-            this.parent.waterScore(env)
-        }
-        return (this.age > 1 && (this.waterScore(env) < parentScore)) || this.age > 30;
+        
+        return (this.age > 1 && (!this.isImprovement(env)) || this.age > 30);
     }
 
     waterScore(env){
         return blueScore(pixelValue(env, this.location.x, this.location.y));
+    }
+
+    isImprovement(env){
+        let parentScore = 0;
+        if(this.parent != undefined){
+            this.parent.waterScore(env)
+        }
+        return this.waterScore(env) >= parentScore;
     }
 
 
@@ -78,14 +89,22 @@ function drawEnv(c, env){
 
 function iterateSimulation(c, env, noiseSize){
     let maxChildCount = 20;
-    drawEnv(c, env);
+    //drawEnv(c, env);
     let i =0;
     while(i<tree.length){
-        cell = tree[i];
-        cell.update()   // update age of cell
-        for(let i =0;i<maxChildCount; i++){
+        let cell = tree[i];
+        cell.update();   // update age of cell
+        for(let j =0;j<maxChildCount; j++){
             if(cell.canCreateChild(env)){   // check if possible to create a child
-                tree[i] = cell.createChild(noiseSize);
+                let child = cell.createChild(noiseSize);
+                if(child.waterScore(env) >= tree[i].waterScore(env)){
+                    if(tree.length >= maxChildCount){
+                        tree[i] = child;
+                    }
+                    else{
+                        tree.push(child);
+                    }
+                }
                 //tree.push(cell.createChild(noiseSize)); // create the child
             }
         }
@@ -132,16 +151,28 @@ function start(input){
 }
 
 function runSimulation(){
-    tree = [new Cell({x:400, y:400})];
+    let startingLoc = randomLocation(0, 0, canvas.width, canvas.height);
+    tree = [new Cell(startingLoc, new Cell(startingLoc))];
     envCtx.drawImage(background, 0, 0);
-    setInterval(()=>iterateSimulation(ctx, environment, noiseRange), 10)
+    drawEnv(ctx, environment);
+    ctx.globalAlpha = 0.1
+    setInterval(()=>iterateSimulation(ctx, environment, noiseRange), 50)
 }
 
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 let background = new Image();
+
 let environment = document.getElementById("tmp");
 let envCtx = environment.getContext("2d");
 let noiseRange = 10;
 
-let tree = [new Cell({x:400, y:400}, new Cell({x:400, y:400}))];  // a list of living cells
+let tree = [];  // a list of living cells
+
+
+
+function randomLocation(minX, minY, maxX, maxY){
+    let x = minX + (Math.random() * (maxX - minX));
+    let y = minY + (Math.random() * (maxY - minY));
+    return {x, y};
+}
