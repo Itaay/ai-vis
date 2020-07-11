@@ -46,14 +46,11 @@ class Cell{ // a class that represents a living cell
     }
 
     canCreateChild(env){
-        let rand = Math.random();
-        let score = 0.5*blueScore(pixelValue(env, this.location.x, this.location.y));
-        return rand < score/((this.age/4) + 1);
+        return true;
     }
 
     needsToDie(env){
-        
-        return (this.age > 1 && (!this.isImprovement(env)) || this.age > 30);
+        return (this.age > 5 && (!this.isImprovement(env)) || this.age > 500);
     }
 
     waterScore(env){
@@ -165,7 +162,7 @@ let background = new Image();
 
 let environment = document.getElementById("tmp");
 let envCtx = environment.getContext("2d");
-let noiseRange = 10;
+let noiseRange = 6;
 
 let tree = [];  // a list of living cells
 
